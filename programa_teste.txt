@@ -1,0 +1,40 @@
+# Programa de teste - todas as primitivas da linguagem
+/* declaracoes com todos os tipos,
+   com e sem inicializacao, e em lista */
+int contador = 0, limite = 10;
+float valor = 10.5;
+string msg = "Iniciando processo";
+bool ativo;
+int i, j, k;
+
+wt(msg);
+wt("contador vale: ", contador);
+rd(contador);
+rd(i, j);
+
+contador = contador + 1;
+valor = (valor * 2.0 - 1.5) / 3.0;
+ativo = contador >= limite && valor != 0.0;
+/* as duas grafias de cada operador logico: && e AND, // e OR, ! e NOT */
+ativo = !(contador == 0) AND valor > 1.0;
+i = -5;
+
+maybe (contador >= 10 && valor != 0.0) {
+    wt("Maior que dez");
+}
+
+maybe (NOT ativo OR contador == 0) {
+    wt("ramo verdadeiro");
+} default {
+    walk (int x = 0; x < contador; x = x + 1) {
+        wt("Caminhando...");
+    }
+}
+
+cycle (contador > 0 // contador < 5) {
+    contador = contador - 1;
+}
+
+walk (i = 0; i <= limite; i = i + 2) {
+    { wt(i); }
+}

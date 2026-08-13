@@ -1,0 +1,29 @@
+# Programa com erros propositais, para demonstrar a recuperacao em modo panico.
+# Ha erros lexicos e sintaticos espalhados: o compilador deve reportar todos,
+# sem parar no primeiro.
+
+int contador = 0;
+float valor = 10.5
+
+int a, b, c;
+
+string msg = "texto ok";
+int errado = 12abc;
+
+contador = contador + ;
+
+maybe (contador > 0 {
+    wt("faltou fechar o parenteses");
+}
+
+maybe (valor < 1.0) {
+    wt("este bloco esta correto");
+} default {
+    wt("e este tambem");
+}
+
+cycle (contador > 0) {
+    contador = contador @ 1;
+}
+
+wt("fim");

@@ -1,0 +1,164 @@
+TRABALHO DE COMPILADORES - PARTE 2: ANALISE SINTATICA
+Metodo: ascendente (bottom-up) LR, com tabela SLR(1)
+
+-----------------------------------------------------------------------
+PRE-REQUISITOS
+-----------------------------------------------------------------------
+Python 3.7 ou superior. Nenhuma biblioteca externa e necessaria: todos os
+modulos usados (sys, bisect, dataclasses) sao da biblioteca padrao. Nenhum
+gerador automatico de analisadores (yacc, bison, PLY) foi utilizado - FIRST,
+FOLLOW, a colecao canonica de itens LR(0) e as tabelas ACTION/GOTO sao
+construidos pelo proprio codigo, em tabela_slr.py.
+
+Funciona igual em Windows e em Linux, sem nenhuma alteracao. Os arquivos de
+entrada sao lidos sempre como UTF-8, e tanto fim de linha LF quanto CRLF sao
+aceitos (as linhas e colunas dos erros saem certas nos dois casos). Em
+Linux/macOS, pode ser necessario usar 'python3' no lugar de 'python'.
+
+-----------------------------------------------------------------------
+COMO EXECUTAR
+-----------------------------------------------------------------------
+Abra o terminal na pasta deste arquivo.
+
+1) Compilar o programa de teste (analise lexica + sintatica):
+
+       python analisador_sintatico.py programa_teste.txt
+
+   Saida esperada: PROGRAMA ACEITO: nenhum erro lexico ou sintatico.
+
+2) Demonstrar o tratamento de erros em modo panico:
+
+       python analisador_sintatico.py programa_com_erros.txt
+
+   Saida esperada: 2 erros lexicos e 5 erros sintaticos, todos com linha e
+   coluna. O analisador NAO para no primeiro erro.
+
+3) Opcoes de visualizacao (podem ser combinadas):
+
+       python analisador_sintatico.py programa_teste.txt --tokens
+       python analisador_sintatico.py programa_teste.txt --derivacao
+       python analisador_sintatico.py programa_teste.txt --arvore
+
+   --tokens     lista os tokens com classe, terminal, linha e coluna
+   --derivacao  lista as producoes aplicadas, na ordem das reducoes
+                (derivacao mais a direita, na ordem inversa)
+   --arvore     imprime a arvore sintatica
+
+3b) Opcoes que expoem a construcao LR etapa por etapa, para conferencia a
+    mao. Sao saidas longas; convem redirecionar para arquivo:
+
+       python analisador_sintatico.py programa_teste.txt --itens  > itens.txt
+       python analisador_sintatico.py programa_teste.txt --tabela > tabela.txt
+       python analisador_sintatico.py programa_teste.txt --passos > passos.txt
+
+   --itens      a colecao canonica de itens LR(0), I0..I115, com os desvios
+                que saem de cada estado
+   --tabela     a matriz ACTION/GOTO, com E<n> para empilhar, R<n> para
+                reduzir pela producao n, AC para aceitar e celula vazia para
+                erro. Como sao 34 terminais e 26 nao-terminais, a matriz e
+                quebrada em blocos de colunas
+   --passos     o traco da analise no formato Pilha | Entrada | Acao, com a
+                pilha mostrando estado e simbolo intercalados
+
+   Os numeros de producao de --tabela, --passos e --derivacao sao os mesmos
+   numerados na secao 3 de gramatica.pdf.
+
+4) Rodar apenas o analisador lexico:
+
+       python analisador_lexico.py programa_teste.txt
+
+5) Verificar a gramatica e a tabela SLR(1):
+
+       python tabela_slr.py
+
+   Imprime o numero de estados e o relatorio de conflitos. Rode isto
+   sempre que alterar gramatica.py.
+
+O programa retorna codigo de saida 0 se o arquivo for aceito e 1 se houver
+qualquer erro lexico ou sintatico.
+
+-----------------------------------------------------------------------
+ARQUIVOS
+-----------------------------------------------------------------------
+gramatica.pdf           Gramatica livre de contexto (documento de entrega)
+gramatica.md            Fonte do PDF acima
+gramatica.py            Gramatica em forma legivel por maquina; e daqui que
+                        a tabela e construida
+tabela_slr.py           FIRST, FOLLOW, itens LR(0), tabelas ACTION e GOTO,
+                        relatorio de conflitos
+analisador_lexico.py    Analisador lexico (versao corrigida da Parte 1)
+analisador_sintatico.py Analisador sintatico LR + modo panico + programa
+                        principal
+programa_teste.txt      Codigo-fonte de entrada com todas as primitivas da
+                        linguagem
+programa_com_erros.txt  Codigo-fonte com erros propositais, para demonstrar
+                        a recuperacao
+
+-----------------------------------------------------------------------
+A GRAMATICA
+-----------------------------------------------------------------------
+62 producoes (incluindo a aumentada), 34 terminais, 26 nao-terminais.
+A colecao canonica LR(0) tem 116 estados e a tabela SLR(1) resultante nao
+tem nenhum conflito shift/reduce nem reduce/reduce. Como e SLR(1), a
+gramatica tambem e LALR(1) e LR(1).
+
+A precedencia e a associatividade dos operadores estao embutidas na
+estratificacao dos nao-terminais (expressao -> exp_e -> exp_nao ->
+exp_rel -> exp_arit -> termo -> fator), e nao em declaracoes externas de
+precedencia. Os detalhes estao em gramatica.pdf.
+
+-----------------------------------------------------------------------
+TRATAMENTO DE ERROS
+-----------------------------------------------------------------------
+LEXICOS: modo panico. O caractere ou lexema invalido e descartado, o erro
+e registrado com linha e coluna, e a analise continua. Sao detectados:
+caractere fora do alfabeto, numero malformado (12abc, 1.2.3, 10.), string
+nao fechada (por quebra de linha ou por fim de arquivo), comentario de
+bloco nao fechado e uso de '&' isolado no lugar de '&&'.
+
+SINTATICOS: modo panico. Ao encontrar uma celula vazia em ACTION, o
+analisador registra o erro com linha, coluna e a lista de terminais
+esperados; em seguida procura na pilha um estado com GOTO definido para um
+nao-terminal de sincronizacao (comando, expressao ou lista_comandos),
+descarta tokens da entrada ate encontrar um que possa seguir esse
+nao-terminal, e retoma a analise dali.
+
+Para evitar cascatas - varias mensagens para um unico defeito - valem duas
+regras. (1) No maximo um erro por posicao da entrada: reincidencias sobre o
+mesmo token sao eco da recuperacao anterior, nao defeitos novos. (2) Depois
+de um erro reportado, e preciso deslocar 2 tokens com sucesso antes de
+reportar o proximo; enquanto o analisador nao voltou a andar sobre entrada
+valida, o novo erro provavelmente e eco da recuperacao. Essa segunda regra e
+uma heuristica classica descrita na literatura (Aho et al.), reimplementada
+aqui em quatro linhas - um contador de deslocamentos. O limiar mais citado e
+3; foi calibrado para 2 porque com 3 defeitos distintos e proximos deixavam
+de ser reportados. As mensagens omitidas sao contadas e o total e informado
+ao final, para que nada desapareca em silencio.
+
+Se a recuperacao nao progredir apos duas tentativas no mesmo ponto, um token
+e descartado a forca, o que garante que a analise sempre termina. Acima de
+50 erros a analise e interrompida.
+
+-----------------------------------------------------------------------
+OBSERVACOES SOBRE MUDANCAS NA PARTE 1
+-----------------------------------------------------------------------
+O analisador lexico da Parte 1 foi corrigido e estendido para atender ao que
+a analise sintatica LR precisa consumir. Foram feitas as seguintes mudancas:
+
+- Cada simbolo passou a ter um terminal proprio (ponto_virgula,
+  fecha_chave, ...). Na Parte 1 todos compartilhavam a classe
+  simbolo_simples, o que impediria distinguir os sincronizadores na
+  tabela LR.
+- Os tokens passaram a ser estruturas com classe, terminal, lexema, linha
+  e coluna, em vez de strings formatadas.
+- A lista de tokens termina com o marcador '$', exigido pela construcao LR.
+- Todos os erros passaram a informar linha e coluna.
+- String nao fechada, numero malformado e comentario de bloco nao fechado
+  passaram a ser detectados (antes eram aceitos ou ignorados em silencio).
+- O alfabeto foi restrito a ASCII: identificadores acentuados e digitos
+  Unicode deixaram de ser aceitos.
+- A virgula foi incorporada ao alfabeto, para permitir listas de
+  declaracao e wt com mais de um argumento.
+- O comentario de bloco /* ... */ foi implementado (o LEIA-ME da Parte 1
+  ja o documentava, mas o codigo nao o tinha).
+- O arquivo de entrada passou a ser recebido pela linha de comando.

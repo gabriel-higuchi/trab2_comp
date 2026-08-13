@@ -1,0 +1,12 @@
+# Material da disciplina - nao redistribuido neste repositorio
+slides de aula/
+trabalho_parte2*.pdf
+
+# Artefatos do Python
+__pycache__/
+*.py[cod]
+
+# Saidas geradas sob demanda pelas opcoes --itens / --tabela / --passos
+itens.txt
+tabela.txt
+passos.txt
